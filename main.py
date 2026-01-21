@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
             app.state.mongo_db = db
         except Exception as e:
             print(f"Mongo init failed: {e}")
-    app.state.redis = create_redis_client("192.168.1.4", 6380)
+    app.state.redis = create_redis_client(os.getenv("REDIS_HOST", "192.168.1.4"), int(os.getenv("REDIS_PORT", "6379")))
 
     if os.getenv("INIT_CITY", "").lower() == "true":
         init_city_info()

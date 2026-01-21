@@ -1,0 +1,110 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: info-center
+  labels:
+    app: info-center
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: info-center
+  template:
+    metadata:
+      labels:
+        app: info-center
+    spec:
+      automountServiceAccountToken: false
+      containers:
+        - name: info-center
+          image: registry.cn-chengdu.aliyuncs.com/doomer/info-center:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DB_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: DB_HOST
+            - name: DB_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: DB_USERNAME
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: DB_PASSWORD
+            - name: DB_DATABASE
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: DB_DATABASE
+            - name: DB_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: DB_PORT
+            - name: MONGO_URL
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: MONGO_URL
+            - name: MONGO_DB
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: MONGO_DB
+            - name: INIT_CITY
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: INIT_CITY
+            - name: DEEPSEEK_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: DEEPSEEK_API_KEY
+            - name: DEEPSEEK_BASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: DEEPSEEK_BASE_URL
+            - name: HTTP_NOTICE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: HTTP_NOTICE_URL
+            - name: GRPC_NOTICE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: GRPC_NOTICE_URL
+            - name: REDIS_HOST
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                secretKeyRef:
+                  name: info-center-secret
+                  key: REDIS_PORT
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: info-center
+  labels:
+    app: info-center
+spec:
+  type: NodePort
+  selector:
+    app: info-center
+  ports:
+    - name: http
+      port: 8000
+      targetPort: 8000
+      nodePort: 30080
