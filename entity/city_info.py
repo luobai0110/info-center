@@ -6,6 +6,6 @@ class CityInfo(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     province: str
     province_code: str
-    city: str
+    city: str  # 城市名称
     city_code: str
     url: str

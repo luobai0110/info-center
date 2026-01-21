@@ -10,5 +10,6 @@ dependencies = [
     "SQLAlchemy",
     "psycopg2-binary",
     "python-dotenv",
-    "requests"
+    "requests",
+    "pymongo"
 ]

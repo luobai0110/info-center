@@ -1,36 +1,36 @@
-import csv
+import time
+from typing import Optional
 
 import requests
-from bs4 import BeautifulSoup
+from pymongo.database import Database
+from sqlmodel import Session
 
-base_url = "https://www.nmc.cn/"
-headers = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.36'
-}
+from config.database import engine
+from dao.city_curd import get_city
+from dao.mongo_curd import insert_weather
+from entity.weather_archive import WeatherArchive
 
-
-def get_province_list():
-    weather_url = base_url + "publish/forecast.html"
-    response = requests.get(weather_url, headers=headers)
-    response.encoding = response.apparent_encoding
-    if response.status_code == 200:
-        soup = BeautifulSoup(response.text, "html.parser")
-        data = []
-        el = soup.find('select', id="provinceList")
-        options = el.find_all('option')
-
-        for option in options:
-            value = option.get('value')
-            text = option.get_text()
-            data.append([value, text])
-
-        with open('province_list.csv', mode='w', newline='', encoding='utf-8') as f:
-            writer = csv.writer(f)
-            writer.writerow(['id', 'name'])
-            writer.writerows(data)
-    else:
-        print(f"Request failed with status code: {response.status_code}")
+base_url = "https://www.nmc.cn"
 
 
-if __name__ == "__main__":
-    get_province_list()
+def get_weather_info(city_code: str, mongo_db: Optional[Database] = None):
+    weather_url = base_url + "/rest/weather"
+    stationid = city_code
+    with (Session(engine)) as session:
+        city_name = get_city(session, city_code)
+        if city_name is None:
+            return
+        city_name = city_name.city
+    now = int(time.time() * 1000)
+    params = {
+        "stationid": stationid,
+        "_": now
+    }
+    resp = requests.get(weather_url, params=params)
+    data = WeatherArchive(city=city_name, city_code=city_code, data=resp.json(), created_at=now)
+    if mongo_db is not None:
+        try:
+            insert_weather(mongo_db, data)
+        except Exception:
+            pass
+    return resp.json()

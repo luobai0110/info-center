@@ -16,7 +16,7 @@ def bulk_insert_city(session: Session, city_info: list[CityInfo]):
 
 
 def get_city(session: Session, code: str) -> CityInfo | None:
-    return session.exec(select(CityInfo).where(CityInfo.code == code)).first()
+    return session.exec(select(CityInfo).where(CityInfo.city_code == code)).first()
 
 
 def get_city_by_name(session: Session, name: str) -> CityInfo | None:
