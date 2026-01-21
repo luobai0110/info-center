@@ -44,12 +44,52 @@ jobs:
           file: ./Dockerfile
           push: true
           tags: registry.cn-chengdu.aliyuncs.com/doomer/info-center:${{ github.ref_name }}
-      - name: Send workflow result
+      - name: Send workflow result (markdown)
         if: always()
-        uses: ./.github/actions/notify
+        uses: actions/github-script@v7
+        env:
+          TAGS: ${{ steps.tags.outputs.tags }}
+          STATUS: ${{ job.status }}
         with:
-          title: ${{ job.status }}
-          repo: ${{ github.repository }}
-          ref: ${{ github.ref_name }}
-          sha: ${{ github.sha }}
-          tags: ${{ steps.tags.outputs.tags }}
+          script: |
+            const url = 'https://notice.yuanzhou.site/api/notice';
+            
+            const {
+              GITHUB_REPOSITORY,
+              GITHUB_REF_NAME,
+              GITHUB_SHA,
+              GITHUB_RUN_ID,
+              GITHUB_SERVER_URL
+            } = process.env;
+            
+            const status = process.env.STATUS || 'unknown';
+            const tags = process.env.TAGS || 'N/A';
+            
+            const title = status.toUpperCase();
+            
+            const message = [
+              '## 构建结果',
+              '',
+              `- **Repository**: \`${GITHUB_REPOSITORY}\``,
+              `- **Ref**: \`${GITHUB_REF_NAME}\``,
+              `- **Commit**: \`${GITHUB_SHA}\``,
+              `- **Tags**: \`${tags}\``,
+              '',
+              `[查看 Workflow 详情](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID})`
+            ].join('\n');
+            
+            const payload = {
+              message,
+              type: 4,
+              title
+            };
+            
+            try {
+              await fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+              });
+            } catch (e) {
+              core.warning(`notify error: ${e.message}`);
+            }
