@@ -1,0 +1,9 @@
+.idea/
+*.iml
+.env
+.venv
+info.db
+.vscode/
+uv.lock
+__pycache__/
+*.pyc
