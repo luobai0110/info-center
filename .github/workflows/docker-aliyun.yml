@@ -46,11 +46,13 @@ jobs:
           tags: registry.cn-chengdu.aliyuncs.com/doomer/info-center:${{ github.ref_name }}
       - name: Send workflow result (markdown)
         if: always()
+        # noinspection UndefinedAction
         uses: actions/github-script@v7
         env:
           TAGS: ${{ steps.tags.outputs.tags }}
           STATUS: ${{ job.status }}
         with:
+          # noinspection UndefinedParamsPresent
           script: |
             const url = 'https://notice.yuanzhou.site/api/notice';
             
