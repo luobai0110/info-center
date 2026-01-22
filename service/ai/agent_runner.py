@@ -19,6 +19,7 @@ def load_prompts(db: Database) -> Dict[int, str]:
         2: p2.get("prompt") or p2.get("content") or "",
     }
 
+
 def load_prompt(db: Database, agent_id: int) -> str:
     col = db.get_collection("agent")
     p = col.find_one({"_id": agent_id}) or {}
@@ -31,6 +32,7 @@ def cache_prompts(redis: Optional[Redis], prompts: Dict[int, str]):
             redis.set("agent:1:prompt", prompts[1])
         if prompts.get(2) is not None:
             redis.set("agent:2:prompt", prompts[2])
+
 
 def cache_prompt(redis: Optional[Redis], agent_id: int, prompt: str):
     if redis:
@@ -53,14 +55,6 @@ def run_agent(weather: Dict[str, Any], prompt: str, fmt: str, model: Optional[Ch
             return content.strip().strip("`").strip()
     return content
 
-
-def run_all(weather: Dict[str, Any], db: Optional[Database], redis: Optional[Redis]) -> Dict[str, Any]:
-    prompts = load_prompts(db) if db is not None else {1: "", 2: ""}
-    cache_prompts(redis, prompts)
-    m = create_deepseek()
-    out1 = run_agent(weather, prompts.get(1, ""), "markdown", m)
-    out2 = run_agent(weather, prompts.get(2, ""), "html", m)
-    return {"markdown": out1, "html": out2}
 
 def run_one(weather: Dict[str, Any], db: Optional[Database], redis: Optional[Redis], agent_id: int) -> str:
     fmt = "markdown" if agent_id == 1 else "html"

@@ -1,4 +1,3 @@
-import logging
 import os
 from contextlib import asynccontextmanager
 
@@ -10,8 +9,8 @@ from config.database import engine
 from config.mongo import create_mongo_client
 from config.redis import create_redis_client
 from init import init_city_info
-from scrap.weather_info import get_weather_info
-from ai.agent_runner import run_all, run_one
+from service.scrap.weather_info import get_weather_info
+from service.ai.agent_runner import run_one
 
 
 @asynccontextmanager
@@ -56,20 +55,6 @@ def get_city_info(city_code: str):
     return get_weather_info(city_code, getattr(app.state, "mongo_db", None))
 
 
-@app.get("/api/info-center/weather/{city_code}/ai")
-def get_city_ai(city_code: str):
-    data = get_weather_info(city_code, getattr(app.state, "mongo_db", None))
-    ai_res = run_all(data, getattr(app.state, "mongo_db", None), getattr(app.state, "redis", None))
-    return {"data": data, "ai": ai_res}
-
-
-@app.get("/api/info-center/weather/{city_code}/ai/markdown")
-def get_city_ai_markdown(city_code: str):
-    data = get_weather_info(city_code, getattr(app.state, "mongo_db", None))
-    content = run_one(data, getattr(app.state, "mongo_db", None), getattr(app.state, "redis", None), 1)
-    return content
-
-
 @app.get("/api/info-center/weather/inner/{city_code}/ai/markdown")
 def get_city_ai_markdown(city_code: str):
     data = get_weather_info(city_code, getattr(app.state, "mongo_db", None))
@@ -84,13 +69,6 @@ def get_city_ai_markdown(city_code: str):
     }
     resp = requests.post(ding_url, json=parmas)
     return resp.json()
-
-
-@app.get("/api/info-center/weather/{city_code}/ai/html")
-def get_city_ai_html(city_code: str):
-    data = get_weather_info(city_code, getattr(app.state, "mongo_db", None))
-    content = run_one(data, getattr(app.state, "mongo_db", None), getattr(app.state, "redis", None), 2)
-    return content
 
 
 @app.get("/api/info-center/weather/inner/{city_code}/ai/html")
