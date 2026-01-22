@@ -88,4 +88,4 @@ def get_weather_info(city_code: str, mongo_db: Optional[Database] = None):
         except Exception as e:
             warning("插入数据库失败", "weather", to_="@doomer")
             pass
-    return data
+    return cleaned_data['data']

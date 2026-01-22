@@ -17,7 +17,7 @@ spec:
       automountServiceAccountToken: false
       containers:
         - name: info-center
-          image: registry.cn-chengdu.aliyuncs.com/doomer/info-center:latest
+          image: registry.cn-chengdu.aliyuncs.com/doomer/info-center:dev
           imagePullPolicy: Always
           ports:
             - containerPort: 8000
@@ -92,6 +92,15 @@ spec:
                 secretKeyRef:
                   name: info-center-secret
                   key: REDIS_PORT
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "250m"
+              ephemeral-storage: "512Mi"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+              ephemeral-storage: "512Mi"
 ---
 apiVersion: v1
 kind: Service

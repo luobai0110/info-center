@@ -13,11 +13,13 @@ from service.scrap.weather_info import get_weather_info, clean_future_weather_in
 from service.ai.agent_runner import run_one
 from pydantic import BaseModel
 
+load_dotenv()
+
 
 class WeatherNoticeRequest(BaseModel):
     city_code: str
     weather_type: int = 0
-    msg_type: int = 1
+    agent_id: int = 1
     notice_type: int = 1
 
 
@@ -66,18 +68,17 @@ def get_city_info(city_code: str):
 @app.post("/api/info-center/weather/notice")
 def send_weather_notice(req: WeatherNoticeRequest):
     data = get_weather_info(req.city_code, getattr(app.state, "mongo_db", None))
-
+    print(f"原始数据: {data}")
     # 如果 weather_type 为 1，则进行数据精简
     ai_input_data = data
     if req.weather_type == 1:
         ai_input_data = clean_future_weather_info(data)
-
-    # msg_type: 1 -> markdown (agent_id=1), 2 -> html (agent_id=2)
+    print(f"数据清理后的数据{ai_input_data}")
+    # agent_id: 1 -> markdown (agent_id=1), 2 -> html (agent_id=2)
     content = run_one(ai_input_data, getattr(app.state, "mongo_db", None), getattr(app.state, "redis", None),
-                      req.msg_type)
-
-    # msg_type=1 发送钉钉，msg_type=2 发送邮件
-    if req.msg_type == 1:
+                      req.agent_id)
+    # notice_type=4 => dingding ，notice_type=2 ==> email
+    if req.notice_type == 4:
         ding_url = os.getenv("HTTP_NOTICE_URL") + "/notice/dingding"
         params = {
             "message": content,
@@ -87,8 +88,8 @@ def send_weather_notice(req: WeatherNoticeRequest):
             "title": "天气预报"
         }
         resp = requests.post(ding_url, json=params)
-        return resp.json()
-    elif req.msg_type == 2:
+        return {"resp": resp.text, "params": params}
+    elif req.notice_type == 2:
         mail_url = os.getenv("HTTP_NOTICE_URL") + "/notice/email"
         params = {
             "message": content,
@@ -100,19 +101,18 @@ def send_weather_notice(req: WeatherNoticeRequest):
             "mailType": 1
         }
         resp = requests.post(mail_url, json=params)
-        # print(resp.text)
-        return resp.json()
-    else:
-        other_url = os.getenv("HTTP_NOTICE_URL") + "/notice"
+        return {"resp": resp.text, "params": params}
+    elif req.notice_type == 3:
+        other_url = os.getenv("HTTP_NOTICE_URL") + "/notice/gotify"
         params = {
             "message": content,
             "from": "@system",
             "to": "@doomer",
             "type": req.notice_type,
-            "title": "天气预报"
+            "title": "天气预报",
+            "priority": 10
         }
         resp = requests.post(other_url, json=params)
-        # print(resp.text)
-        return resp.json()
-
-    return {"status": "error", "msg": "invalid msg_type"}
+        return {"resp": resp.text, "parmas": params}
+    else:
+        return {"status": "error", "message": "未知通知类型"}
