@@ -9,8 +9,16 @@ from config.database import engine
 from config.mongo import create_mongo_client
 from config.redis import create_redis_client
 from init import init_city_info
-from service.scrap.weather_info import get_weather_info
+from service.scrap.weather_info import get_weather_info, clean_future_weather_info
 from service.ai.agent_runner import run_one
+from pydantic import BaseModel
+
+
+class WeatherNoticeRequest(BaseModel):
+    city_code: str
+    weather_type: int = 0
+    msg_type: int = 1
+    notice_type: int = 1
 
 
 @asynccontextmanager
@@ -55,36 +63,56 @@ def get_city_info(city_code: str):
     return get_weather_info(city_code, getattr(app.state, "mongo_db", None))
 
 
-@app.get("/api/info-center/weather/inner/{city_code}/ai/markdown")
-def get_city_ai_markdown(city_code: str):
-    data = get_weather_info(city_code, getattr(app.state, "mongo_db", None))
-    content = run_one(data, getattr(app.state, "mongo_db", None), getattr(app.state, "redis", None), 1)
-    ding_url = os.getenv("HTTP_NOTICE_URL") + "/notice/dingding"
-    parmas = {
-        "message": content,
-        "from": "@system",
-        "to": "@doomer",
-        "type": 4,
-        "title": "天气预报"
-    }
-    resp = requests.post(ding_url, json=parmas)
-    return resp.json()
+@app.post("/api/info-center/weather/notice")
+def send_weather_notice(req: WeatherNoticeRequest):
+    data = get_weather_info(req.city_code, getattr(app.state, "mongo_db", None))
 
+    # 如果 weather_type 为 1，则进行数据精简
+    ai_input_data = data
+    if req.weather_type == 1:
+        ai_input_data = clean_future_weather_info(data)
 
-@app.get("/api/info-center/weather/inner/{city_code}/ai/html")
-def get_city_ai_html(city_code: str):
-    data = get_weather_info(city_code, getattr(app.state, "mongo_db", None))
-    content = run_one(data, getattr(app.state, "mongo_db", None), getattr(app.state, "redis", None), 2)
-    parmas = {
-        "message": content,
-        "from": "doomer@yuanzhou.site",
-        "to": "yuanzhou0110@qq.com",
-        "type": 1,
-        "title": "今日天气",
-        "subject": "天气预报",
-        "mailType": 1
-    }
-    mail_url = os.getenv("HTTP_NOTICE_URL") + "/notice/email"
-    resp = requests.post(mail_url, json=parmas)
-    print(resp.text)
-    return resp.json()
+    # msg_type: 1 -> markdown (agent_id=1), 2 -> html (agent_id=2)
+    content = run_one(ai_input_data, getattr(app.state, "mongo_db", None), getattr(app.state, "redis", None),
+                      req.msg_type)
+
+    # msg_type=1 发送钉钉，msg_type=2 发送邮件
+    if req.msg_type == 1:
+        ding_url = os.getenv("HTTP_NOTICE_URL") + "/notice/dingding"
+        params = {
+            "message": content,
+            "from": "@system",
+            "to": "@doomer",
+            "type": req.notice_type,
+            "title": "天气预报"
+        }
+        resp = requests.post(ding_url, json=params)
+        return resp.json()
+    elif req.msg_type == 2:
+        mail_url = os.getenv("HTTP_NOTICE_URL") + "/notice/email"
+        params = {
+            "message": content,
+            "from": "doomer@yuanzhou.site",
+            "to": "yuanzhou0110@qq.com",
+            "type": req.notice_type,
+            "title": "今日天气",
+            "subject": "天气预报",
+            "mailType": 1
+        }
+        resp = requests.post(mail_url, json=params)
+        # print(resp.text)
+        return resp.json()
+    else:
+        other_url = os.getenv("HTTP_NOTICE_URL") + "/notice"
+        params = {
+            "message": content,
+            "from": "@system",
+            "to": "@doomer",
+            "type": req.notice_type,
+            "title": "天气预报"
+        }
+        resp = requests.post(other_url, json=params)
+        # print(resp.text)
+        return resp.json()
+
+    return {"status": "error", "msg": "invalid msg_type"}

@@ -15,6 +15,16 @@ def ensure_weather_indexes(db: Database):
     return col
 
 
+def clean_mongo_data(data: Any) -> Any:
+    if isinstance(data, dict):
+        return {k: clean_mongo_data(v) for k, v in data.items()}
+    elif isinstance(data, list):
+        return [clean_mongo_data(v) for v in data]
+    elif isinstance(data, int) and not isinstance(data, bool):
+        return float(data)
+    return data
+
+
 def insert_weather(db: Database, data: WeatherArchive) -> Any:
     col = ensure_weather_indexes(db)
     doc: Dict[str, Any] = data.model_dump(exclude_none=True)
@@ -23,6 +33,7 @@ def insert_weather(db: Database, data: WeatherArchive) -> Any:
             doc["_id"] = ObjectId(doc.pop("id"))
         except Exception:
             doc.pop("id", None)
+    doc = clean_mongo_data(doc)
     return col.insert_one(doc).inserted_id
 
 
@@ -34,6 +45,7 @@ def upsert_weather_by_city_code(db: Database, data: WeatherArchive) -> Dict[str,
             doc["_id"] = ObjectId(doc.pop("id"))
         except Exception:
             doc.pop("id", None)
+    doc = clean_mongo_data(doc)
     result = col.update_one({"city_code": data.city_code}, {"$set": doc}, upsert=True)
     return {"matched": result.matched_count, "modified": result.modified_count, "upserted_id": str(result.upserted_id) if result.upserted_id else None}
 
